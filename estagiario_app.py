@@ -814,32 +814,34 @@ elif menu == "Termos de Compromisso":
                         type=["pdf"]
                     )
 
-                    if arquivo and st.button("💾 Salvar Termo"):
-                        arquivo_bytes = arquivo.read()
-
-                        if termo:
-                            termo.nome_arquivo = arquivo.name
-                            termo.mime_type = arquivo.type
-                            termo.tamanho_arquivo = len(arquivo.getbuffer())
-                            termo.arquivo = arquivo.read() 
-                            termo.data_upload = date.today()
-
-                        else:
-                            novo = TermoCompromisso(
-                                id_contrato=c_id,
-                                nome_arquivo=arquivo.name,
-                                mime_type=arquivo.type,
-                                tamanho_arquivo=len(arquivo.getbuffer()),
-                                arquivo=arquivo.read()  
-                            )
-                            db.add(novo)
-
-
-                        db.commit()
-
-                        st.success("📄 Termo salvo com sucesso!")
-                        st.session_state.pop("substituir_termo", None)
-                        st.rerun()
+                    if arquivo:
+                        if st.button("💾 Salvar Termo"):
+                            conteudo = arquivo.read()
+                    
+                            if termo:
+                                # ATUALIZA TERMO EXISTENTE
+                                termo.nome_arquivo = arquivo.name
+                                termo.mime_type = arquivo.type
+                                termo.tamanho_arquivo = len(conteudo)
+                                termo.arquivo = conteudo
+                                termo.data_upload = date.today()
+                            else:
+                                # CRIA NOVO TERMO
+                                novo = TermoCompromisso(
+                                    id_contrato=c_id,
+                                    nome_arquivo=arquivo.name,
+                                    mime_type=arquivo.type,
+                                    tamanho_arquivo=len(conteudo),
+                                    arquivo=conteudo
+                                )
+                                db.add(novo)
+                    
+                            db.commit()
+                    
+                            st.success("📄 Termo salvo com sucesso!")
+                            st.session_state.pop("substituir_termo", None)
+                            st.rerun()
 
     db.close()
+
 
