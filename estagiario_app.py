@@ -450,98 +450,163 @@ elif menu == "Contratos":
 # FÉRIAS
 # ---------------------------
 elif menu == "Férias":
-    st.header("Registro de Férias")
+    st.header("Gestão de Férias")
+
+    aba1, aba2 = st.tabs(["Registrar Férias", "Férias Concedidas"])
 
     db = SessionLocal()
 
-    # ---------------------------------
-    # PRÉ-PREENCHIMENTO VINDO DO CÁLCULO
-    # ---------------------------------
-    prefill = st.session_state.get("ferias_prefill")
+    # =====================================================
+    # ABA 1 — REGISTRAR FÉRIAS
+    # =====================================================
+    with aba1:
+        # ---------------------------------
+        # MENSAGEM DE SUCESSO (APÓS RERUN)
+        # ---------------------------------
+        if "msg_ferias" in st.session_state:
+            st.success(st.session_state["msg_ferias"])
+            del st.session_state["msg_ferias"]
 
-    if prefill:
-        est_id_prefill = prefill["id_estagiario"]
-        data_ini_prefill = prefill["data_inicio"]
-        data_fim_prefill = prefill["data_fim"]
-        dias_prefill = prefill["dias"]
-    else:
-        est_id_prefill = None
-        data_ini_prefill = date.today()
-        data_fim_prefill = date.today()
-        dias_prefill = 0
+        # ---------------------------------
+        # PRÉ-PREENCHIMENTO VINDO DO CÁLCULO
+        # ---------------------------------
+        prefill = st.session_state.get("ferias_prefill")
 
-    # -----------------------------
-    # SELEÇÃO DO ESTAGIÁRIO
-    # -----------------------------
-    estagiarios = db.query(Estagiario).order_by(Estagiario.nome).all()
-
-    est_dict = {f"{e.id_estagiario} - {e.nome}": e.id_estagiario for e in estagiarios}
-
-    est_sel = st.selectbox(
-        "Selecione o estagiário",
-        [""] + list(est_dict.keys()),
-        index=list(est_dict.values()).index(est_id_prefill) + 1 if est_id_prefill else 0
-    )
-
-    if est_sel:
-        est_id = est_dict[est_sel]
-
-        st.divider()
+        if prefill:
+            est_id_prefill = prefill["id_estagiario"]
+            data_ini_prefill = prefill["data_inicio"]
+            data_fim_prefill = prefill["data_fim"]
+            dias_prefill = prefill["dias"]
+        else:
+            est_id_prefill = None
+            data_ini_prefill = date.today()
+            data_fim_prefill = date.today()
+            dias_prefill = 0
 
         # -----------------------------
-        # FORMULÁRIO DE FÉRIAS
+        # SELEÇÃO DO ESTAGIÁRIO
         # -----------------------------
-        col1, col2 = st.columns(2)
+        estagiarios = db.query(Estagiario).order_by(Estagiario.nome).all()
 
-        with col1:
-            data_inicio = st.date_input(
-                "Data de início das férias",
-                value=data_ini_prefill
-            )
+        est_dict = {
+            f"{e.id_estagiario} - {e.nome}": e.id_estagiario
+            for e in estagiarios
+        }
 
-        with col2:
-            data_fim = st.date_input(
-                "Data de fim das férias",
-                value=data_fim_prefill
-            )
-
-        # Cálculo automático dos dias
-        dias_calculados = (data_fim - data_inicio).days + 1
-
-        dias_usufruidos = st.number_input(
-            "Dias de férias",
-            min_value=1,
-            value=dias_calculados if dias_prefill == 0 else dias_prefill,
-            step=1
+        est_sel = st.selectbox(
+            "Selecione o estagiário",
+            [""] + list(est_dict.keys()),
+            index=list(est_dict.values()).index(est_id_prefill) + 1
+            if est_id_prefill else 0,
+            key="select_estagiario_ferias"
         )
 
-        memorando = st.text_input("Memorando / Observação")
+        if est_sel:
+            est_id = est_dict[est_sel]
 
-        # -----------------------------
-        # SALVAR FÉRIAS
-        # -----------------------------
-        if st.button("💾 Registrar Férias"):
-            if data_fim < data_inicio:
-                st.error("❌ A data final não pode ser anterior à data inicial.")
-            else:
-                nova_ferias = Ferias(
-                    id_estagiario=est_id,
-                    periodo_inicio=data_inicio,
-                    periodo_fim=data_fim,
-                    dias_usufruidos=dias_usufruidos,
-                    memorando=memorando
+            st.divider()
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                data_inicio = st.date_input(
+                    "Data de início das férias",
+                    value=data_ini_prefill,
+                    key="data_inicio_ferias"
                 )
 
-                db.add(nova_ferias)
-                db.commit()
+            with col2:
+                data_fim = st.date_input(
+                    "Data de fim das férias",
+                    value=data_fim_prefill,
+                    key="data_fim_ferias"
+                )
 
-                st.success("✅ Férias registradas com sucesso!")
+            dias_calculados = (data_fim - data_inicio).days + 1
 
-                # LIMPA O PREFILL PARA NÃO REUTILIZAR
-                if "ferias_prefill" in st.session_state:
-                    del st.session_state["ferias_prefill"]
+            dias_usufruidos = st.number_input(
+                "Dias de férias",
+                min_value=1,
+                value=dias_calculados if dias_prefill == 0 else dias_prefill,
+                step=1,
+                key="dias_ferias"
+            )
 
-                st.rerun()
+            memorando = st.text_input(
+                "Memorando / Observação",
+                key="memo_ferias"
+            )
+
+            # -----------------------------
+            # SALVAR FÉRIAS
+            # -----------------------------
+            if st.button("💾 Registrar Férias"):
+                if data_fim < data_inicio:
+                    st.error("❌ A data final não pode ser anterior à data inicial.")
+                else:
+                    nova_ferias = Ferias(
+                        id_estagiario=est_id,
+                        periodo_inicio=data_inicio,
+                        periodo_fim=data_fim,
+                        dias_usufruidos=dias_usufruidos,
+                        memorando=memorando
+                    )
+
+                    db.add(nova_ferias)
+                    db.commit()
+
+                    # Mensagem persistente
+                    st.session_state["msg_ferias"] = "✅ Férias registradas com sucesso!"
+
+                    # Limpa prefill e formulário
+                    for k in [
+                        "ferias_prefill",
+                        "select_estagiario_ferias",
+                        "data_inicio_ferias",
+                        "data_fim_ferias",
+                        "dias_ferias",
+                        "memo_ferias"
+                    ]:
+                        if k in st.session_state:
+                            del st.session_state[k]
+
+                    st.rerun()
+
+    # =====================================================
+    # ABA 2 — VISUALIZAR FÉRIAS CONCEDIDAS
+    # =====================================================
+    with aba2:
+        st.subheader("📋 Férias Concedidas")
+
+        ferias_lista = (
+            db.query(Ferias, Estagiario)
+            .join(
+                Estagiario,
+                Ferias.id_estagiario == Estagiario.id_estagiario
+            )
+            .order_by(Ferias.periodo_inicio.desc())
+            .all()
+        )
+
+        if not ferias_lista:
+            st.info("Nenhuma férias registrada.")
+        else:
+            df_ferias = pd.DataFrame([
+                {
+                    "Estagiário": est.nome,
+                    "Início": fer.periodo_inicio.strftime("%d/%m/%Y"),
+                    "Fim": fer.periodo_fim.strftime("%d/%m/%Y"),
+                    "Dias": fer.dias_usufruidos,
+                    "Memorando": fer.memorando
+                }
+                for fer, est in ferias_lista
+            ])
+
+            st.dataframe(
+                df_ferias,
+                use_container_width=True,
+                hide_index=True
+            )
 
     db.close()
 
@@ -800,3 +865,4 @@ elif menu == "Termos de Compromisso":
                         st.rerun()
 
     db.close()
+
