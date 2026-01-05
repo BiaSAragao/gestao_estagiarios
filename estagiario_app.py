@@ -4,7 +4,7 @@ import os
 import pandas as pd
 import streamlit as st
 import re
-from sqlalchemy import create_engine, Column, Integer, String, Date, Text, ForeignKey, func
+from sqlalchemy import create_engine, Column, Integer, String, Date, Text, ForeignKey, func, LargeBinary
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship, scoped_session
 
@@ -20,13 +20,6 @@ if not DATABASE_URL:
 engine = create_engine(DATABASE_URL, echo=False, future=True)
 SessionLocal = scoped_session(sessionmaker(bind=engine, autoflush=False, autocommit=False))
 Base = declarative_base()
-
-# ---------------------------
-# Upload de Termos de Compromisso
-# ---------------------------
-
-UPLOAD_DIR = "uploads/termos"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 # Função para compatibilidade com o bloco de relatório obrigatório
@@ -81,16 +74,22 @@ class TermoCompromisso(Base):
     __tablename__ = "termos_compromisso"
 
     id_termo = Column(Integer, primary_key=True)
-    id_contrato = Column(Integer, ForeignKey("contrato.id_contrato", ondelete="CASCADE"), nullable=False)
+    id_contrato = Column(
+        Integer,
+        ForeignKey("contrato.id_contrato", ondelete="CASCADE"),
+        nullable=False
+    )
 
     nome_arquivo = Column(String(255), nullable=False)
-    caminho_arquivo = Column(Text, nullable=False)
     mime_type = Column(String(100))
     tamanho_arquivo = Column(Integer)
+
+    arquivo = Column(LargeBinary, nullable=False)  # 👈 AGORA O PDF FICA AQUI
 
     data_upload = Column(Date, default=date.today)
 
     contrato = relationship("Contrato")
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -752,9 +751,6 @@ elif menu == "Termos de Compromisso":
 
     db = SessionLocal()
 
-    # ---------------------------------
-    # SELEÇÃO DO ESTAGIÁRIO
-    # ---------------------------------
     estagiarios = db.query(Estagiario).order_by(Estagiario.nome).all()
 
     est_dict = {
@@ -770,9 +766,6 @@ elif menu == "Termos de Compromisso":
     if est_sel:
         est_id = est_dict[est_sel]
 
-        # ---------------------------------
-        # LISTAR CONTRATOS DO ESTAGIÁRIO
-        # ---------------------------------
         contratos = db.query(Contrato).filter(
             Contrato.id_estagiario == est_id
         ).order_by(Contrato.data_inicio).all()
@@ -800,30 +793,20 @@ elif menu == "Termos de Compromisso":
                     TermoCompromisso.id_contrato == c_id
                 ).first()
 
-                # ---------------------------------
-                # SE JÁ EXISTE TERMO
-                # ---------------------------------
-                
                 if termo:
                     st.success("✅ Termo de compromisso cadastrado")
                     st.write(f"📄 Arquivo: **{termo.nome_arquivo}**")
 
-                    with open(termo.caminho_arquivo, "rb") as f:
-                        st.download_button(
-                            "⬇️ Baixar Termo de Compromisso",
-                            data=f,
-                            file_name=termo.nome_arquivo,
-                            mime=termo.mime_type
-                        )
-
-                    st.divider()
+                    st.download_button(
+                        "⬇️ Baixar Termo de Compromisso",
+                        data=termo.arquivo,
+                        file_name=termo.nome_arquivo,
+                        mime=termo.mime_type
+                    )
 
                     if st.button("🔄 Substituir Termo"):
                         st.session_state["substituir_termo"] = True
 
-                # ---------------------------------
-                # UPLOAD DO TERMO
-                # ---------------------------------
                 if not termo or st.session_state.get("substituir_termo"):
 
                     arquivo = st.file_uploader(
@@ -832,29 +815,21 @@ elif menu == "Termos de Compromisso":
                     )
 
                     if arquivo and st.button("💾 Salvar Termo"):
-                        caminho = os.path.join(
-                            UPLOAD_DIR,
-                            f"contrato_{c_id}_{arquivo.name}"
-                        )
-
-                        with open(caminho, "wb") as f:
-                            f.write(arquivo.read())
+                        arquivo_bytes = arquivo.read()
 
                         if termo:
-                            # Atualiza
                             termo.nome_arquivo = arquivo.name
-                            termo.caminho_arquivo = caminho
                             termo.mime_type = arquivo.type
-                            termo.tamanho_arquivo = len(arquivo.getbuffer())
+                            termo.tamanho_arquivo = len(arquivo_bytes)
+                            termo.arquivo = arquivo_bytes
                             termo.data_upload = date.today()
                         else:
-                            # Cria novo
                             novo = TermoCompromisso(
                                 id_contrato=c_id,
                                 nome_arquivo=arquivo.name,
-                                caminho_arquivo=caminho,
                                 mime_type=arquivo.type,
-                                tamanho_arquivo=len(arquivo.getbuffer())
+                                tamanho_arquivo=len(arquivo_bytes),
+                                arquivo=arquivo_bytes
                             )
                             db.add(novo)
 
@@ -865,4 +840,3 @@ elif menu == "Termos de Compromisso":
                         st.rerun()
 
     db.close()
-
