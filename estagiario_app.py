@@ -820,18 +820,20 @@ elif menu == "Termos de Compromisso":
                         if termo:
                             termo.nome_arquivo = arquivo.name
                             termo.mime_type = arquivo.type
-                            termo.tamanho_arquivo = len(arquivo_bytes)
-                            termo.arquivo = arquivo_bytes
+                            termo.tamanho_arquivo = len(arquivo.getbuffer())
+                            termo.arquivo = arquivo.read() 
                             termo.data_upload = date.today()
+
                         else:
                             novo = TermoCompromisso(
                                 id_contrato=c_id,
                                 nome_arquivo=arquivo.name,
                                 mime_type=arquivo.type,
-                                tamanho_arquivo=len(arquivo_bytes),
-                                arquivo=arquivo_bytes
+                                tamanho_arquivo=len(arquivo.getbuffer()),
+                                arquivo=arquivo.read()  
                             )
                             db.add(novo)
+
 
                         db.commit()
 
@@ -840,3 +842,4 @@ elif menu == "Termos de Compromisso":
                         st.rerun()
 
     db.close()
+
