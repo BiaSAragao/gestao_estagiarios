@@ -7,6 +7,7 @@ import re
 from sqlalchemy import create_engine, Column, Integer, String, Date, Text, ForeignKey, func, LargeBinary
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship, scoped_session
+from auth import render_login
 
 # ---------------------------
 # Config / DB
@@ -90,8 +91,29 @@ class TermoCompromisso(Base):
 
     contrato = relationship("Contrato")
 
+class Administrador(Base):
+    __tablename__ = "administrador"  # Nome exato da tabela
+    id_adm = Column(Integer, primary_key=True)
+    nome = Column(String(150))
+    email = Column(String(150), unique=True, nullable=False)
+    senha_hash = Column(String(255), nullable=False) # Coluna onde o hash será lido
 
 Base.metadata.create_all(bind=engine)
+
+db = SessionLocal()
+
+# --- CONTROLE DE ACESSO ---
+if "autenticado" not in st.session_state:
+    st.session_state["autenticado"] = False
+
+if not st.session_state["autenticado"]:
+    render_login(db) # Chama a função do outro arquivo
+    st.stop()        # Trava o resto do script
+
+# Botão de logout na sidebar
+if st.sidebar.button("Sair"):
+    st.session_state["autenticado"] = False
+    st.rerun()
 
 # ---------------------------
 # Funções auxiliares
@@ -843,5 +865,6 @@ elif menu == "Termos de Compromisso":
                             st.rerun()
 
     db.close()
+
 
 
