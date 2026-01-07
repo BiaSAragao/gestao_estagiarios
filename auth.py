@@ -1,6 +1,18 @@
 import streamlit as st
 from sqlalchemy.orm import Session
-from passlib.hash import pbkdf2_sha256 # Use o mesmo do cadastro
+from sqlalchemy import Column, Integer, String
+from sqlalchemy.ext.declarative import declarative_base
+from passlib.hash import pbkdf2_sha256
+
+Base = declarative_base()
+
+# Definimos o Administrador aqui para evitar o erro de importação circular
+class Administrador(Base):
+    __tablename__ = "administrador"
+    id_adm = Column(Integer, primary_key=True)
+    nome = Column(String(150))
+    email = Column(String(150), unique=True)
+    senha_hash = Column(String(255))
 
 def verificar_senha(senha_pura, senha_hash):
     try:
@@ -9,7 +21,7 @@ def verificar_senha(senha_pura, senha_hash):
         return False
 
 def autenticar_usuario(db: Session, email, senha):
-    from estagiario_app import Administrador 
+    # Agora ele busca a classe que está neste mesmo arquivo
     adm = db.query(Administrador).filter(Administrador.email == email).first()
     if adm and verificar_senha(senha, adm.senha_hash):
         return adm
